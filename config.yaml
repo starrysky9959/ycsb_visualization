@@ -1,0 +1,16 @@
+# YCSB benchmark configuration
+
+# Database settings
+server_ip: 127.0.0.1
+engine: mongo
+deployment: 32c64g_1ebs
+
+# Workload settings
+workload: update
+threads: 512
+load: false
+
+# Directory settings
+ycsb_dir: /home/ubuntu/ycsb/ycsb-mongodb-binding-0.17.0
+workload_dir: workload
+output_dir: output

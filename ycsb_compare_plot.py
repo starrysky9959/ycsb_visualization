@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import os
+import argparse
 
 def load_metrics_data(csv_path='ycsb_metrics.csv'):
     """Load the YCSB metrics from CSV file."""
@@ -15,16 +16,23 @@ def load_metrics_data(csv_path='ycsb_metrics.csv'):
     df['Threads'] = df['Threads'].astype(int)
     return df
 
-def sort_configs(configs):
-    """Sort configurations in the specified order."""
-    # Define the desired order
-    order = ['mongo', 'eloq_1ebs_2log', 'eloq_1ebs3log', 'eloq_2ebs4log', 'eloq_3ebs6log']
+def sort_configs(configs, order=None):
+    """
+    Sort configurations in the specified order.
+    
+    Args:
+        configs: List of configuration names to sort
+        order: Optional custom order list. If None, uses default order.
+    """
+    # Define the default order if none provided
+    if order is None:
+        order = ['mongo', 'eloq_1ebs_2log', 'eloq_1ebs3log', 'eloq_2ebs4log', 'eloq_3ebs6log']
     
     # Sort configs based on the specified order
     sorted_configs = sorted(configs, key=lambda x: next((i for i, item in enumerate(order) if item in x), len(order)))
     return sorted_configs
 
-def plot_throughput_vs_latency(df, workload_type, output_dir='plots'):
+def plot_throughput_and_latency(df, workload_type, output_dir='plots', config_order=None):
     """
     Create bar + line chart showing throughput and average latency for different configurations.
     
@@ -32,6 +40,7 @@ def plot_throughput_vs_latency(df, workload_type, output_dir='plots'):
         df: DataFrame with YCSB metrics
         workload_type: Type of workload (read, insert, update, scan)
         output_dir: Directory to save the plot
+        config_order: Optional custom ordering for configurations
     """
     if df.empty:
         return
@@ -49,7 +58,7 @@ def plot_throughput_vs_latency(df, workload_type, output_dir='plots'):
     configs = workload_df['SystemConfig'].unique()
     
     # Sort configurations in the desired order
-    configs = sort_configs(configs)
+    configs = sort_configs(configs, config_order)
     
     threads = sorted(workload_df['Threads'].unique())
     
@@ -117,7 +126,7 @@ def plot_throughput_vs_latency(df, workload_type, output_dir='plots'):
     ax1.set_xlabel('Threads')
     ax1.set_ylabel('Throughput (ops/sec)')
     ax2.set_ylabel('Average Latency (μs)')
-    plt.title(f'{workload_type.upper()} Workload - Throughput vs Latency')
+    plt.title(f'{workload_type.upper()} Workload - Throughput and Latency')
     
     # Set x-ticks to thread counts
     ax1.set_xticks(positions)
@@ -130,37 +139,33 @@ def plot_throughput_vs_latency(df, workload_type, output_dir='plots'):
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     
-    # Calculate optimal number of columns and positioning based on number of configurations
+    # Calculate optimal number of columns for legends
     if len(configs) <= 3:
         ncol_tp = len(configs)
         ncol_lat = len(configs)
-        tp_pos = 0.3
-        lat_pos = 0.7
     else:
         ncol_tp = min(len(configs), 3)
         ncol_lat = min(len(configs), 3)
-        tp_pos = 0.25
-        lat_pos = 0.75
     
-    # Create throughput legend with adjusted position
+    # Create throughput legend with adjusted position - place it higher
     throughput_legend = ax1.legend(lines1, [l.replace(' (Throughput)', '') for l in labels1], 
                                   loc='upper center', 
-                                  bbox_to_anchor=(tp_pos, -0.20), ncol=ncol_tp, 
+                                  bbox_to_anchor=(0.5, -0.15), ncol=ncol_tp, 
                                   fontsize=9, frameon=True, facecolor='white', edgecolor='gray',
                                   title='Throughput')
     
-    # Create latency legend with adjusted position
+    # Create latency legend with adjusted position - place it lower
     latency_legend = ax2.legend(lines2, [l.replace(' (Latency)', '') for l in labels2], 
                               loc='upper center', 
-                              bbox_to_anchor=(lat_pos, -0.20), ncol=ncol_lat, 
+                              bbox_to_anchor=(0.5, -0.28), ncol=ncol_lat, 
                               fontsize=9, frameon=True, facecolor='white', edgecolor='gray',
                               title='Latency')
     
     # Add throughput legend back to the plot
     ax1.add_artist(throughput_legend)
     
-    # Adjust layout based on number of configurations
-    bottom_margin = 0.25 + 0.02 * max(0, len(configs) - 4)
+    # Adjust layout based on number of configurations - increase bottom margin
+    bottom_margin = 0.32 + 0.02 * max(0, len(configs) - 4)  # Increased to accommodate two vertical legends
     plt.subplots_adjust(bottom=bottom_margin)
     plt.tight_layout(rect=[0, bottom_margin-0.2, 1, 0.95])
     
@@ -168,11 +173,11 @@ def plot_throughput_vs_latency(df, workload_type, output_dir='plots'):
     os.makedirs(output_dir, exist_ok=True)
     
     # Save the figure
-    plt.savefig(f'{output_dir}/{workload_type}_throughput_vs_latency.png', dpi=300, bbox_inches='tight')
-    print(f"Saved plot to {output_dir}/{workload_type}_throughput_vs_latency.png")
+    plt.savefig(f'{output_dir}/{workload_type}_throughput_and_latency.png', dpi=300, bbox_inches='tight')
+    print(f"Saved plot to {output_dir}/{workload_type}_throughput_and_latency.png")
     plt.close()
 
-def plot_latency_details(df, workload_type, output_dir='plots'):
+def plot_latency_details(df, workload_type, output_dir='plots', config_order=None):
     """
     Create subplots showing different latency metrics for different configurations.
     
@@ -180,6 +185,7 @@ def plot_latency_details(df, workload_type, output_dir='plots'):
         df: DataFrame with YCSB metrics
         workload_type: Type of workload (read, insert, update, scan) 
         output_dir: Directory to save the plot
+        config_order: Optional custom ordering for configurations
     """
     if df.empty:
         return
@@ -197,7 +203,7 @@ def plot_latency_details(df, workload_type, output_dir='plots'):
     configs = workload_df['SystemConfig'].unique()
     
     # Sort configurations in the desired order
-    configs = sort_configs(configs)
+    configs = sort_configs(configs, config_order)
     
     threads = sorted(workload_df['Threads'].unique())
     
@@ -297,8 +303,13 @@ def plot_latency_details(df, workload_type, output_dir='plots'):
     print(f"Saved plot to {output_dir}/{workload_type}_latency_details.png")
     plt.close()
 
-def generate_all_plots():
-    """Generate all plots for all workload types."""
+def generate_all_plots(config_order=None):
+    """
+    Generate all plots for all workload types.
+    
+    Args:
+        config_order: Optional list defining the order of configurations in plots
+    """
     # Load the metrics data
     df = load_metrics_data()
     if df is None or df.empty:
@@ -315,8 +326,15 @@ def generate_all_plots():
     # Generate plots for each workload type
     for workload in workload_types:
         print(f"\nGenerating plots for {workload} workload...")
-        plot_throughput_vs_latency(df, workload, output_dir)
-        plot_latency_details(df, workload, output_dir)
+        plot_throughput_and_latency(df, workload, output_dir, config_order)
+        plot_latency_details(df, workload, output_dir, config_order)
 
 if __name__ == "__main__":
-    generate_all_plots()
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Generate YCSB visualization plots with custom configuration order')
+    parser.add_argument('--order', nargs='+', help='Custom order for configurations (space-separated list)')
+    
+    args = parser.parse_args()
+    
+    # Generate plots with the specified order (if provided)
+    generate_all_plots(config_order=args.order)
